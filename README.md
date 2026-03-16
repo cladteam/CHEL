@@ -1,51 +1,81 @@
-## Spatial Join Example (Point-in-Hex Join)
+## Example: Linking Participants to Different CHEL Datasets by Year
+
+This example demonstrates how to link participant locations to different
+versions of the CHEL hexagon dataset depending on the participant's
+`start_date`.
+
+- Participants **before 2024** → linked to `CHEL_2022.gpkg`
+- Participants **2024 or later** → linked to `CHEL_2024.gpkg`
+
+### Python Example
 
 ```python
+import pandas as pd
 import geopandas as gpd
 
 # -------------------------------------------------------------------
-# 1. Load participant location data (must be a GeoDataFrame of points)
+# Example participant data
+# Replace this with your real participant dataset
+# Required fields: participant_id, lat, lon, start_date
+# start_date format: YYYY_MM_DD HH:MM:SS
 # -------------------------------------------------------------------
-# Example structure:
-# participant_locations = [
-#     {"participant_id": 1, "lat": 40.12, "lon": -75.33},
-#     {"participant_id": 2, "lat": 34.05, "lon": -118.24},
-# ]
-#
-# Convert list of dicts → GeoDataFrame
-# (Replace this with your actual participant data source)
-import pandas as pd
-from shapely.geometry import Point
+participant_locations = [
+    {"participant_id": 1, "lat": 40.4406, "lon": -79.9959, "start_date": "2023_05_14 08:30:00"},
+    {"participant_id": 2, "lat": 41.4993, "lon": -81.6944, "start_date": "2023_11_02 14:10:00"},
+    {"participant_id": 3, "lat": 39.9612, "lon": -82.9988, "start_date": "2024_01_15 09:00:00"},
+    {"participant_id": 4, "lat": 42.3314, "lon": -83.0458, "start_date": "2024_07_22 16:45:00"},
+]
 
+# Convert participant list to GeoDataFrame
 participant_df = pd.DataFrame(participant_locations)
+
+participant_df["start_date"] = pd.to_datetime(
+    participant_df["start_date"].str.replace("_", "-"),
+    format="%Y-%m-%d %H:%M:%S",
+    errors="coerce"
+)
+
 participant_gdf = gpd.GeoDataFrame(
     participant_df,
-    geometry=gpd.points_from_xy(participant_df.lon, participant_df.lat),
+    geometry=gpd.points_from_xy(participant_df["lon"], participant_df["lat"]),
     crs="EPSG:4326",
 )
 
-# -------------------------------------------------------------------
-# 2. Load CHEL hexagons (ensure same CRS as participant points)
-# -------------------------------------------------------------------
-chel = gpd.read_file("CHEL_2022.gpkg")
+# Load CHEL datasets
+chel_2022 = gpd.read_file("CHEL_2022.gpkg")
+chel_2024 = gpd.read_file("CHEL_2024.gpkg")
 
-# Reproject if needed
-if chel.crs != participant_gdf.crs:
-    chel = chel.to_crs(participant_gdf.crs)
+if chel_2022.crs != participant_gdf.crs:
+    chel_2022 = chel_2022.to_crs(participant_gdf.crs)
 
-# -------------------------------------------------------------------
-# 3. Spatial join: assign each participant to its hexagon
-# -------------------------------------------------------------------
-joined = gpd.sjoin(
-    participant_gdf,
-    chel,
-    how="left",
-    predicate="intersects"   # point-in-polygon join
-)
+if chel_2024.crs != participant_gdf.crs:
+    chel_2024 = chel_2024.to_crs(participant_gdf.crs)
 
-# -------------------------------------------------------------------
-# 4. Optional: keep only selected columns
-# -------------------------------------------------------------------
-output = joined[["participant_id", "h3_hex_id", "geometry"]]
+# Split participants by year
+participants_2022 = participant_gdf[participant_gdf["start_date"].dt.year < 2024]
+participants_2024 = participant_gdf[participant_gdf["start_date"].dt.year >= 2024]
+
+# Spatial join to appropriate CHEL dataset
+joined_2022 = gpd.sjoin(participants_2022, chel_2022, how="left", predicate="intersects")
+joined_2024 = gpd.sjoin(participants_2024, chel_2024, how="left", predicate="intersects")
+
+# Optional: record which CHEL dataset was used
+joined_2022["chel_year"] = 2022
+joined_2024["chel_year"] = 2024
+
+# Combine results
+output = pd.concat([joined_2022, joined_2024], ignore_index=True)
+output = gpd.GeoDataFrame(output, geometry="geometry", crs=participant_gdf.crs)
+
+# Remove join helper column if present
+if "index_right" in output.columns:
+    output = output.drop(columns="index_right")
 
 print(output.head())
+```
+
+### Result
+
+Each participant will be assigned attributes from the correct CHEL dataset
+based on the year of their `start_date`. Columns that only exist in one
+CHEL dataset will appear as `NaN` for rows linked to the other dataset.

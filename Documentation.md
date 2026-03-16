@@ -613,370 +613,9 @@ This is the key principle: aggregation must match meaning.
 
 ---
 
-# Part 4: Spatial Linkage and Privacy Architecture
+# Part 4: Quality Assurance, Validation, and Technical Limitations
 
-## **4.1 Overview: From Indicators to Participant-Linked Geography**
-
-Parts II and III defined the *what* and the *mathematics* of aggregation. Part IV defines the *how* — the operational pipeline that:
-
-1. Constructs sliver geometries  
-2. Computes population metrics required for privacy  
-3. Links participant locations to spatial reference layers  
-4. Applies deterministic jitter logic  
-5. Produces downstream analytic tables
-
-The pipeline is a sequence of logically distinct transforms:
-
-* Sliver generation (ZIP3 × Hex3)
-
-* Spatial linkage (points → ZIP3, Hex3, state)
-
-* Privacy reassignment (jitter)
-
-* Output shaping (DRC dataset and location table)
-
-Each stage has independent mathematical and privacy implications.
-
----
-
-## **4.2 Sliver Construction: ZIP3 × Hex3 Intersection Geometry**
-
-The sliver dataset is a derived geometry that exists solely to support privacy logic.
-
-### **4.2.1 Why Slivers Exist**
-
-Privacy reassignment requires knowledge of the population within each hex that lies inside a given ZIP3. Hexes and ZIP3 polygons do not align perfectly. A hex may intersect multiple ZIP3 regions.
-
-To compute population for a hex *within* a specific ZIP3, we must construct intersection geometries.
-
-Thus, for each pair (ZIP3\_i, Hex3\_j), we compute:
-
-Sliver\_(i,j) \= ZIP3\_i ∩ Hex3\_j
-
-Each sliver is a polygon representing the portion of hex j that lies within ZIP3 i.
-
----
-
-### **4.2.2 Geometric Overlay**
-
-Sliver geometries are produced using a geometric overlay operation (intersection).
-
-Given:
-
-* ZIP3 polygon layer Z  
-* Hex3 polygon layer H
-
-The overlay produces:
-
-S \= Z ∩ H
-
-Each resulting sliver s has:
-
-* zip3\_id
-
-* hex3\_id
-
-* Geometry
-
-* Area\_km2
-
-Area is computed after reprojecting geometries to an equal-area CRS (e.g., EPSG:5070) to ensure area calculations are metrically valid.
-
-Area computation is:
-
-Area\_s \= area(geometry\_s) in square kilometers
-
-Projection consistency is critical here. Area must not be computed in a geographic CRS (latitude/longitude degrees), as that introduces distortion.
-
----
-
-## **4.3 Population Estimation for Slivers (Raster Zonal Aggregation)**
-
-Slivers alone are insufficient. We must compute the population contained within each sliver to support the jitter threshold.
-
-The population raster (GPW v4) provides density per pixel.
-
-### **4.3.1 Pixel-Level Population**
-
-For each raster pixel p:
-
-Population\_pixel\_p \= Density\_pixel\_p × Area\_pixel\_p
-
-Area\_pixel\_p is computed using spherical geometry:
-
-Area\_pixel\_p \= R² × Δφ × Δλ × cos(latitude\_p)
-
-where:
-
-* R is Earth’s radius
-
-* Δφ and Δλ are angular increments
-
-* latitude\_p is pixel center latitude
-
-This converts density (persons per km²) into count (persons).
-
----
-
-### **4.3.2 Zonal Statistics**
-
-For each sliver s:
-
-Population\_sliver\_s \= SUM over pixels p intersecting s of Population\_pixel\_p
-
-This is a standard zonal sum operation.
-
-Because slivers may be small and raster resolution coarse, partial pixel intersections are handled proportionally by area of overlap.
-
-Thus:
-
-Population\_sliver\_s \= SUM over p of ( Density\_p × Area\_(p∩s) )
-
-This ensures more accurate population estimation at sliver boundaries.
-
----
-
-### **4.3.3 Sliver Population Density**
-
-After computing:
-
-Population\_sliver\_s
-
-we compute:
-
-PopulationDensity\_s \= Population\_sliver\_s / Area\_s
-
-This value is not used directly for aggregation, but provides diagnostics and validation.
-
----
-
-## **4.4 Spatial Linkage of Participant Locations**
-
-With slivers prepared, the next stage is spatial linkage of participant point locations.
-
-Each participant record includes:
-
-* Latitude
-
-* Longitude
-
-* Person identifiers
-
-* Location identifiers
-
-* Start date
-
-These coordinates are converted into point geometries in a consistent CRS (e.g., EPSG:4269).
-
----
-
-### **4.4.1 ZIP3 Assignment**
-
-ZIP3 is assigned using a spatial “within” predicate:
-
-If point lies within ZIP3 polygon → assign zip3\_id
-
-If no containment match (e.g., near boundary due to floating precision), nearest ZIP3 may be used depending on implementation safeguards.
-
-ZIP3 assignment is performed separately for:
-
-* 2019 ZIP5 base (for 2022 release alignment)
-
-* 2020 ZIP5 base (for 2024 release alignment)
-
----
-
-### **4.4.2 Hex3 Assignment**
-
-Hex assignment uses nearest spatial join:
-
-For each participant point:
-
-* Assign nearest Hex3 (2022 geometry)
-
-* Assign nearest Hex3 (2024 geometry)
-
-Nearest join is used rather than strict “within” because minor floating-point or projection artifacts may cause a point to fall microscopically outside a polygon boundary.
-
-Nearest ensures deterministic assignment.
-
----
-
-### **4.4.3 State Assignment**
-
-State is assigned using nearest or within join, providing a coarser geographic classification.
-
----
-
-### **4.4.4 Deduplication**
-
-Duplicate records are identified using combinations of:
-
-* mspi
-
-* person\_id
-
-* location\_id
-
-* start\_date
-
-* latitude
-
-* longitude
-
-Groups with duplicate\_count \> 1 are reduced to a single canonical record.
-
-Deduplication is critical before privacy logic, to prevent artificial inflation of counts.
-
----
-
-## **4.5 Privacy-Preserving Jitter Logic**
-
-The jitter mechanism is a structural privacy safeguard grounded in HIPAA de-identification via expert determination.
-
-### **4.5.1 Rationale**
-
-Even though Hex3 units are large (\~12,000 km²), population distribution within a hex may be uneven. A hex that lies mostly in a sparsely populated ZIP3 region may contain fewer than a threshold population.
-
-Under expert determination principles, small-cell geographic combinations increase re-identification risk when linked with health data.
-
-Therefore, CHEL applies a deterministic reassignment rule.
-
----
-
-### **4.5.2 Threshold Rule**
-
-For each participant record assigned to:
-
-* hex3\_id
-
-* zip3\_id
-
-We compute:
-
-Pop\_hex\_zip3 \= SUM of Population\_sliver for slivers where (hex3\_id, zip3\_id)
-
-If:
-
-Pop\_hex\_zip3 \<= 20,000
-
-Then:
-
-Hex\_final \= LargestHex\_in\_same\_ZIP3
-
-Else:
-
-Hex\_final \= Original hex3\_id
-
-The “largest hex” is defined as the hex within that ZIP3 with maximum area\_km2 contribution.
-
----
-
-### **4.5.3 Determinism and Reproducibility**
-
-The jitter rule is deterministic.
-
-Given the same inputs:
-
-* Same hex geometries
-
-* Same sliver population
-
-* Same ZIP definitions
-
-The reassignment outcome is reproducible.
-
-There is no stochastic displacement.
-
-This preserves analytic reproducibility while satisfying privacy safeguards.
-
----
-
-### **4.5.4 Edge Cases**
-
-Handled explicitly:
-
-* Null population values → treated as exceeding threshold (no jitter)
-
-* Multiple candidate largest hexes → deterministic tie-breaking (e.g., lowest hex3\_id)
-
-* Missing ZIP3 → no jitter applied
-
-* Coastal hexes partially intersecting ZIP3 → population derived from sliver intersection only
-
----
-
-## **4.6 Output Datasets**
-
-The pipeline produces two downstream tables:
-
-### **4.6.1 DRC Dataset**
-
-Contains:
-
-* mspi
-
-* location\_id
-
-* start\_date
-
-* zip3
-
-* hex3\_id\_2022
-
-* hex3\_id\_2024
-
-* state
-
-* h3\_id
-
-Used in controlled environments where ZIP3 is permitted.
-
----
-
-### **4.6.2 Location Table (Jittered)**
-
-Contains:
-
-* mspi
-
-* location\_id
-
-* start\_date
-
-* hex3\_id\_2022
-
-* hex3\_id\_2024
-
-* state
-
-* h3\_id
-
-ZIP3 removed to reduce geographic identifiability.
-
----
-
-## **4.7 Architectural Summary**
-
-Part IV defines the operational execution of:
-
-* Sliver construction
-
-* Raster-based population estimation
-
-* Spatial linkage
-
-* Deduplication
-
-* HIPAA-based deterministic jitter
-
-* Output shaping
-
-Combined with Part III’s aggregation rules, this defines the full transformation from raw environmental and participant inputs to privacy-preserving analytic outputs.
-
-# Part 5: Quality Assurance, Validation, and Technical Limitations
-
-## **5.1 Purpose and Scope of Validation**
+## **4.1 Purpose and Scope of Validation**
 
 The purpose of validation in CHEL is to confirm that each transformation produces results consistent with both the underlying mathematics and the meaning of the source data.
 
@@ -1004,9 +643,9 @@ Validation therefore examines whether:
 
 These checks are implemented at each stage of the pipeline rather than as a single terminal review. The objective is to ensure that the computational implementation faithfully executes the aggregation framework defined in Part III and the linkage logic defined in Part IV.
 
-## **5.2 Geometric Validation**
+## **4.2 Geometric Validation**
 
-### **5.2.1 Coordinate Reference Systems**
+### **4.2.1 Coordinate Reference Systems**
 
 All area-based calculations in CHEL depend on correct projection. Area must be computed in an equal-area coordinate reference system. Calculating polygon area in geographic coordinates (latitude/longitude degrees) introduces distortion that increases with latitude.
 
@@ -1032,7 +671,7 @@ Failure at this stage would systematically bias every area-weighted aggregation 
 
 ---
 
-### **5.2.2 Geometry Integrity**
+### **4.2.2 Geometry Integrity**
 
 Spatial overlays assume valid polygon geometries. Self-intersections, zero-area artifacts, or corrupted rings can produce spurious intersection fragments.
 
@@ -1056,9 +695,9 @@ These checks ensure that overlay logic did not generate artificial fragments or 
 
 ---
 
-## **5.3 Attribute Validation**
+## **4.3 Attribute Validation**
 
-### **5.3.1 Conservation Diagnostics**
+### **4.3.1 Conservation Diagnostics**
 
 For variables representing totals (e.g., population), aggregation must approximate conservation.
 
@@ -1078,7 +717,7 @@ Conservation checks are therefore treated as structural validation rather than d
 
 ---
 
-### **5.3.2 Range and Domain Checks**
+### **4.3.2 Range and Domain Checks**
 
 For each derived indicator, validation confirms that values fall within mathematically valid bounds:
 
@@ -1094,7 +733,7 @@ Indicators falling outside expected ranges are flagged for review.
 
 ---
 
-### **5.3.3 Null Handling**
+### **4.3.3 Null Handling**
 
 CHEL distinguishes among:
 
@@ -1108,7 +747,7 @@ Null propagation rules are explicitly defined. For percentile ranking, null valu
 
 ---
 
-## **5.4 Visual Inspection and Pattern Review**
+## **4.4 Visual Inspection and Pattern Review**
 
 Quantitative diagnostics are complemented by visual review of spatial outputs.
 
@@ -1126,11 +765,11 @@ Visual inspection serves as a qualitative confirmation that aggregation and inte
 
 ---
 
-## **5.5 Pipeline Stage Validation**
+## **4.5 Pipeline Stage Validation**
 
 Validation procedures are applied within each computational stage.
 
-### **5.5.1 Sliver Construction**
+### **4.5.1 Sliver Construction**
 
 Checks include:
 
@@ -1144,7 +783,7 @@ These checks confirm the correctness of overlay and zonal aggregation logic.
 
 ---
 
-### **5.5.2 Spatial Linkage**
+### **4.5.2 Spatial Linkage**
 
 For participant linkage:
 
@@ -1158,29 +797,29 @@ Assignment stability is tested by re-running linkage on identical inputs and con
 
 ---
 
-## **5.6 Technical Limitations**
+## **4.6 Technical Limitations**
 
 CHEL acknowledges several structural limitations.
 
-### **5.6.1 Interpolation Assumptions**
+### **4.6.1 Interpolation Assumptions**
 
 Area-weighted interpolation assumes uniform distribution within tracts. When within-tract heterogeneity is high, hex-level values approximate tract averages rather than local micro-patterns.
 
-### **5.6.2 Raster Resolution**
+### **4.6.2 Raster Resolution**
 
 Population raster resolution limits precision of sliver-level population estimates. Small slivers intersecting few raster cells may exhibit discretization effects.
 
-### **5.6.3 Fixed Grid Alignment**
+### **4.6.3 Fixed Grid Alignment**
 
 Hex grids do not conform to natural boundaries such as rivers, watershed divides, or transportation corridors. Environmental processes tied tightly to such features may not align perfectly with hex boundaries.
 
-### **5.6.4 Source Data Uncertainty**
+### **4.6.4 Source Data Uncertainty**
 
 Modeled environmental exposures (e.g., air pollution estimates) contain inherent uncertainty independent of spatial aggregation.
 
 ---
 
-## **5.7 Measurement Error and Spatial Misclassification**
+## **4.7 Measurement Error and Spatial Misclassification**
 
 Spatial misclassification in CHEL may arise from:
 
@@ -1202,7 +841,7 @@ Sensitivity analyses across alternative hex resolutions provide one approach to 
 
 ---
 
-## **5.8 Recommended Analytical Practices**
+## **4.8 Recommended Analytical Practices**
 
 Users of CHEL are encouraged to:
 
@@ -1216,9 +855,9 @@ Users of CHEL are encouraged to:
 
 CHEL provides a stable spatial framework; rigorous inference remains the responsibility of the analyst.
 
-# Part 6: Cross Year Harmonization and Versioning
+# Part 5: Cross Year Harmonization and Versioning
 
-## **6.1 Rationale for Versioned Releases**
+## **5.1 Rationale for Versioned Releases**
 
 CHEL is designed as a spatial framework rather than a static dataset. Environmental, demographic, and health source data are periodically updated. As a result, CHEL must support versioned releases that reflect updated inputs while preserving methodological consistency.
 
@@ -1244,11 +883,11 @@ Each CHEL release is internally consistent. Cross-release comparisons require ex
 
 ---
 
-## **6.2 Stable Elements Across Releases**
+## **5.2 Stable Elements Across Releases**
 
 Certain components remain methodologically stable between CHEL 2022 and CHEL 2024\.
 
-### **6.2.1 Hexagonal Grid Framework**
+### **5.2.1 Hexagonal Grid Framework**
 
 The H3 hierarchical indexing system remains constant. Resolution 3 (Hex3) continues to serve as the base analytic geography. While the underlying H3 indexing system allows higher resolutions, the aggregation level remains fixed for comparability.
 
@@ -1256,7 +895,7 @@ The aggregation formulas defined in Part III are unchanged between releases.
 
 ---
 
-### **6.2.2 Aggregation Methodology**
+### **5.2.2 Aggregation Methodology**
 
 The following remain identical across releases:
 
@@ -1276,11 +915,11 @@ This ensures that differences between releases arise from updated source data, n
 
 ---
 
-## **6.3 Updated Elements Between 2022 and 2024**
+## **5.3 Updated Elements Between 2022 and 2024**
 
 Although aggregation logic remains stable, several inputs differ across releases.
 
-### **6.3.1 Environmental Inputs**
+### **5.3.1 Environmental Inputs**
 
 EJI 2022 and EJI 2024 are distinct source datasets. Differences may include:
 
@@ -1296,7 +935,7 @@ These differences propagate through tract-to-hex interpolation but do not alter 
 
 ---
 
-### **6.3.2 ACS Data Vintages**
+### **5.3.2 ACS Data Vintages**
 
 ACS 5-year estimates used in each release correspond to different rolling periods. Changes in:
 
@@ -1312,7 +951,7 @@ reflect updated survey estimates rather than methodological changes within CHEL.
 
 ---
 
-### **6.3.3 ZIP Boundary Updates**
+### **5.3.3 ZIP Boundary Updates**
 
 CHEL 2022 uses ZIP5 geometries aligned with the 2019 TIGER release.  
  CHEL 2024 uses ZIP5 geometries aligned with the 2020 TIGER release.
@@ -1323,7 +962,7 @@ However, these updates do not affect environmental aggregation, which is perform
 
 ---
 
-### **6.3.4 Facility and Hazard Inventories**
+### **5.3.4 Facility and Hazard Inventories**
 
 Hazard datasets (e.g., TRI, RMP, Superfund) are periodically updated. Facility openings, closures, or reclassifications will affect counts and densities in updated releases.
 
@@ -1331,7 +970,7 @@ Again, the transformation logic remains constant; only source counts change.
 
 ---
 
-## **6.4 Implications for Longitudinal Analysis**
+## **5.4 Implications for Longitudinal Analysis**
 
 When comparing CHEL 2022 and CHEL 2024:
 
@@ -1353,7 +992,7 @@ The stability of hex geometry and aggregation mathematics ensures that observed 
 
 ---
 
-## **6.5 Version Documentation and Reproducibility**
+## **5.5 Version Documentation and Reproducibility**
 
 Each CHEL release should document:
 
@@ -1379,7 +1018,7 @@ Version control is treated as part of methodological integrity rather than admin
 
 ---
 
-## **6.6 Summary of Harmonization Strategy**
+## **5.6 Summary of Harmonization Strategy**
 
 Cross-year harmonization in CHEL is achieved by holding constant:
 

@@ -388,17 +388,17 @@ These datasets originate from heterogeneous native units (county, raster, polygo
 
 The following table documents the primary spatial, environmental, demographic, and privacy-supporting inputs used in the CHEL pipeline. These datasets form the full upstream dependency graph for aggregation and spatial linkage.
 
-| Input | Foundry Name | Foundry Dataset | Native Geometry | Role in CHEL | Source Link |
-| ----- | ----- | ----- | ----- | ----- | ----- |
-| H3 Hex3 Grid | hex3\_grid\_with\_h3 | [https://foundry.cladplatform.org/workspace/dataset/preview/ri.foundry.main.dataset.62629491-cc5a-48e3-8bae-b1a4d55095fb/master](https://foundry.cladplatform.org/workspace/dataset/preview/ri.foundry.main.dataset.62629491-cc5a-48e3-8bae-b1a4d55095fb/master) | Polygon | Primary analytic spatial unit | [https://github.com/uber/h3](https://github.com/uber/h3) |
-| EJI 2022 | EJI\_2022 | [https://foundry.cladplatform.org/workspace/dataset/preview/ri.foundry.main.dataset.7044a6a1-bca2-43e9-b1c0-18657ef520fb/master](https://foundry.cladplatform.org/workspace/dataset/preview/ri.foundry.main.dataset.7044a6a1-bca2-43e9-b1c0-18657ef520fb/master) | Census Tract | Environmental burden inputs (2022 release) | [https://www.atsdr.cdc.gov/place-health/php/eji/eji-data-download.html](https://www.atsdr.cdc.gov/place-health/php/eji/eji-data-download.html) |
-| EJI 2024 | EJI\_2024 | [https://foundry.cladplatform.org/workspace/dataset/preview/ri.foundry.main.dataset.0b1b7ad3-2897-47af-99ab-850b26740430/master](https://foundry.cladplatform.org/workspace/dataset/preview/ri.foundry.main.dataset.0b1b7ad3-2897-47af-99ab-850b26740430/master) | Census Tract | Environmental burden inputs (2024 release) | [https://www.atsdr.cdc.gov/place-health/php/eji/eji-data-download.html](https://www.atsdr.cdc.gov/place-health/php/eji/eji-data-download.html) |
-| ACS NOHSDP | ACS\_Tract\_NOHSDP | [https://foundry.cladplatform.org/workspace/dataset/preview/ri.foundry.main.dataset.7a7119d9-e470-4463-8b4c-fa1c5bd177fa/master](https://foundry.cladplatform.org/workspace/dataset/preview/ri.foundry.main.dataset.7a7119d9-e470-4463-8b4c-fa1c5bd177fa/master) | Census Tract | Social vulnerability indicators | [https://www.census.gov/programs-surveys/acs/data.html](https://www.census.gov/programs-surveys/acs/data.html) |
-| Population Raster | NASA\_population\_raster | [https://foundry.cladplatform.org/workspace/dataset/preview/ri.foundry.main.dataset.34b90606-c587-4688-9a62-c077cbec6dde/master](https://foundry.cladplatform.org/workspace/dataset/preview/ri.foundry.main.dataset.34b90606-c587-4688-9a62-c077cbec6dde/master) | Raster | Population derivation for slivers and privacy logic | [https://www.earthdata.nasa.gov/data/projects/gpw](https://www.earthdata.nasa.gov/data/projects/gpw) |
-| ZIP5 2019 | ZIP5-2019 | [https://foundry.cladplatform.org/workspace/dataset/preview/ri.foundry.main.dataset.d3dbae86-3eb2-4b56-b79e-297e8568498c/master](https://foundry.cladplatform.org/workspace/dataset/preview/ri.foundry.main.dataset.d3dbae86-3eb2-4b56-b79e-297e8568498c/master) | Polygon | ZIP3 construction (2022 release alignment) | [https://www2.census.gov/geo/tiger/TIGER2019/ZCTA5/](https://www2.census.gov/geo/tiger/TIGER2019/ZCTA5/) |
-| ZIP5 2020 | ZIP5-2020 | [https://foundry.cladplatform.org/workspace/dataset/preview/ri.foundry.main.dataset.700b04cc-f3c5-4c52-b503-d2217847fb1a/master](https://foundry.cladplatform.org/workspace/dataset/preview/ri.foundry.main.dataset.700b04cc-f3c5-4c52-b503-d2217847fb1a/master) | Polygon | ZIP3 construction (2024 release alignment) | [https://www.census.gov/cgi-bin/geo/shapefiles/index.php?year=2020\&layergroup=ZIP%20Code%20Tabulation%20Areas](https://www.census.gov/cgi-bin/geo/shapefiles/index.php?year=2020&layergroup=ZIP%20Code%20Tabulation%20Areas) |
-| States | States | [https://foundry.cladplatform.org/workspace/dataset/preview/ri.foundry.main.dataset.f3d4a79d-57d8-43d6-a4cb-16e108bf4bc2/master](https://foundry.cladplatform.org/workspace/dataset/preview/ri.foundry.main.dataset.f3d4a79d-57d8-43d6-a4cb-16e108bf4bc2/master) | Polygon | State-level classification and linkage validation | [https://www2.census.gov/geo/tiger/TIGER2025/STATE/](https://www2.census.gov/geo/tiger/TIGER2025/STATE/) |
-| Geocodes | final\_geocoder\_output\_manual | [https://foundry.cladplatform.org/workspace/dataset/preview/ri.foundry.main.dataset.8b20692f-0ad3-4012-849b-63092a908f43/master](https://foundry.cladplatform.org/workspace/dataset/preview/ri.foundry.main.dataset.8b20692f-0ad3-4012-849b-63092a908f43/master) | Point | Participant coordinate inputs for spatial linkage | N/A |
+| Input | Native Geometry | Role in CHEL | Source Link |
+| ----- | ----- | ----- | ----- |
+| H3 Hex3 Grid | Polygon | Primary analytic spatial unit | [https://github.com/uber/h3](https://github.com/uber/h3) |
+| EJI 2022 | Census Tract | Environmental burden inputs (2022 release) | [https://www.atsdr.cdc.gov/place-health/php/eji/eji-data-download.html](https://www.atsdr.cdc.gov/place-health/php/eji/eji-data-download.html) |
+| EJI 2024 | Census Tract | Environmental burden inputs (2024 release) | [https://www.atsdr.cdc.gov/place-health/php/eji/eji-data-download.html](https://www.atsdr.cdc.gov/place-health/php/eji/eji-data-download.html) |
+| ACS NOHSDP | Census Tract | Social vulnerability indicators | [https://www.census.gov/programs-surveys/acs/data.html](https://www.census.gov/programs-surveys/acs/data.html) |
+| Population Raster | Raster | Population derivation for slivers and privacy logic | [https://www.earthdata.nasa.gov/data/projects/gpw](https://www.earthdata.nasa.gov/data/projects/gpw) |
+| ZIP5 2019 | Polygon | ZIP3 construction (2022 release alignment) | [https://www2.census.gov/geo/tiger/TIGER2019/ZCTA5/](https://www2.census.gov/geo/tiger/TIGER2019/ZCTA5/) |
+| ZIP5 2020 | Polygon | ZIP3 construction (2024 release alignment) | [https://www.census.gov/cgi-bin/geo/shapefiles/index.php?year=2020\&layergroup=ZIP%20Code%20Tabulation%20Areas](https://www.census.gov/cgi-bin/geo/shapefiles/index.php?year=2020&layergroup=ZIP%20Code%20Tabulation%20Areas) |
+| States | Polygon | State-level classification and linkage validation | [https://www2.census.gov/geo/tiger/TIGER2025/STATE/](https://www2.census.gov/geo/tiger/TIGER2025/STATE/) |
+| Geocodes | Point | Participant coordinate inputs for spatial linkage | N/A |
 
 # Part 3: Mathematical Aggregation Framework
 
@@ -1158,20 +1158,6 @@ Assignment stability is tested by re-running linkage on identical inputs and con
 
 ---
 
-### **5.5.3 Privacy Reassignment (Jitter)**
-
-For jitter logic:
-
-* Reassignment occurs only when Pop\_hex\_zip3 ≤ 20,000.
-
-* Reassigned hex remains within the same ZIP3 region.
-
-* Largest-hex selection is deterministic under tie conditions.
-
-Spot checks confirm that jitter does not alter assignments exceeding the population threshold.
-
----
-
 ## **5.6 Technical Limitations**
 
 CHEL acknowledges several structural limitations.
@@ -1287,14 +1273,6 @@ The following remain identical across releases:
 * Composite scoring strategy
 
 This ensures that differences between releases arise from updated source data, not altered aggregation mathematics.
-
----
-
-### **6.2.3 Privacy Architecture**
-
-The sliver construction method and jitter threshold (20,000 population) remain unchanged across versions. The privacy reassignment rule continues to be deterministic and ZIP3-bound.
-
-This consistency ensures that privacy constraints are stable and reproducible over time.
 
 ---
 

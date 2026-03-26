@@ -1,11 +1,12 @@
 ## Example: Linking Participants to Different CHEL Datasets by Year
 
-This example demonstrates how to link participant locations to different
-versions of the CHEL hexagon dataset depending on the participant's
-`start_date`.
+This example demonstrates how to:
 
-- Participants **before 2024** → linked to `CHEL_2022.gpkg`
-- Participants **2024 or later** → linked to `CHEL_2024.gpkg`
+1. Link CHEL tabular data (`CHEL_2022.csv`, `CHEL_2024.csv`) to a hex grid (`hex3_grid_with_h3.gpkg`) using `hex_id`
+2. Assign participants to the correct CHEL dataset based on `start_date`
+
+- Participants **before 2024** → linked to `CHEL_2022`
+- Participants **2024 or later** → linked to `CHEL_2024`
 
 ### Python Example
 
@@ -14,10 +15,19 @@ import pandas as pd
 import geopandas as gpd
 
 # -------------------------------------------------------------------
-# Example participant data
-# Replace this with your real participant dataset
-# Required fields: participant_id, lat, lon, start_date
-# start_date format: YYYY_MM_DD HH:MM:SS
+# 1. Load hex grid and CHEL CSVs, then join on hex_id
+# -------------------------------------------------------------------
+hex_grid = gpd.read_file("data/hex3_grid_with_h3.gpkg")
+
+chel_2022_csv = pd.read_csv("data/CHEL_2022.csv")
+chel_2024_csv = pd.read_csv("data/CHEL_2024.csv")
+
+# Join tabular CHEL data to hex geometries
+chel_2022 = hex_grid.merge(chel_2022_csv, on="hex_id", how="left")
+chel_2024 = hex_grid.merge(chel_2024_csv, on="hex_id", how="left")
+
+# -------------------------------------------------------------------
+# 2. Example participant data
 # -------------------------------------------------------------------
 participant_locations = [
     {"participant_id": 1, "lat": 40.4406, "lon": -79.9959, "start_date": "2023_05_14 08:30:00"},
@@ -26,7 +36,6 @@ participant_locations = [
     {"participant_id": 4, "lat": 42.3314, "lon": -83.0458, "start_date": "2024_07_22 16:45:00"},
 ]
 
-# Convert participant list to GeoDataFrame
 participant_df = pd.DataFrame(participant_locations)
 
 participant_df["start_date"] = pd.to_datetime(
@@ -41,21 +50,19 @@ participant_gdf = gpd.GeoDataFrame(
     crs="EPSG:4326",
 )
 
-# Load CHEL datasets
-chel_2022 = gpd.read_file("CHEL_2022.gpkg")
-chel_2024 = gpd.read_file("CHEL_2024.gpkg")
+# Ensure CRS matches
+chel_2022 = chel_2022.to_crs(participant_gdf.crs)
+chel_2024 = chel_2024.to_crs(participant_gdf.crs)
 
-if chel_2022.crs != participant_gdf.crs:
-    chel_2022 = chel_2022.to_crs(participant_gdf.crs)
-
-if chel_2024.crs != participant_gdf.crs:
-    chel_2024 = chel_2024.to_crs(participant_gdf.crs)
-
-# Split participants by year
+# -------------------------------------------------------------------
+# 3. Split participants by year
+# -------------------------------------------------------------------
 participants_2022 = participant_gdf[participant_gdf["start_date"].dt.year < 2024]
 participants_2024 = participant_gdf[participant_gdf["start_date"].dt.year >= 2024]
 
-# Spatial join to appropriate CHEL dataset
+# -------------------------------------------------------------------
+# 4. Spatial join to appropriate CHEL dataset
+# -------------------------------------------------------------------
 joined_2022 = gpd.sjoin(participants_2022, chel_2022, how="left", predicate="intersects")
 joined_2024 = gpd.sjoin(participants_2024, chel_2024, how="left", predicate="intersects")
 
@@ -63,11 +70,12 @@ joined_2024 = gpd.sjoin(participants_2024, chel_2024, how="left", predicate="int
 joined_2022["chel_year"] = 2022
 joined_2024["chel_year"] = 2024
 
-# Combine results
+# -------------------------------------------------------------------
+# 5. Combine results
+# -------------------------------------------------------------------
 output = pd.concat([joined_2022, joined_2024], ignore_index=True)
 output = gpd.GeoDataFrame(output, geometry="geometry", crs=participant_gdf.crs)
 
-# Remove join helper column if present
 if "index_right" in output.columns:
     output = output.drop(columns="index_right")
 

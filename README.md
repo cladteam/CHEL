@@ -5,8 +5,8 @@ This example demonstrates how to:
 1. Link CHEL tabular data (`CHEL_2022.csv`, `CHEL_2024.csv`) to a hex grid (`hex3_grid_with_h3.gpkg`) using `hex_id`
 2. Assign participants to the correct CHEL dataset based on `start_date`
 
-- Participants **before 2024** → linked to `CHEL_2022`
-- Participants **2024 or later** → linked to `CHEL_2024`
+- Participants **2015 to 2018** → linked to `CHEL_2022`
+- Participants **2019 to 2022** → linked to `CHEL_2024`
 
 ### Python Example
 

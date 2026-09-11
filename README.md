@@ -57,8 +57,8 @@ chel_2024 = chel_2024.to_crs(participant_gdf.crs)
 # -------------------------------------------------------------------
 # 3. Split participants by year
 # -------------------------------------------------------------------
-participants_2022 = participant_gdf[participant_gdf["start_date"].dt.year < 2024]
-participants_2024 = participant_gdf[participant_gdf["start_date"].dt.year >= 2024]
+participants_2022 = participant_gdf[(participant_gdf["start_date"].dt.year >= 2015) & (participant_gdf["start_date"].dt.year <= 2018)]
+participants_2024 = participant_gdf[(participant_gdf["start_date"].dt.year >= 2019) & (participant_gdf["start_date"].dt.year <= 2022)]
 
 # -------------------------------------------------------------------
 # 4. Spatial join to appropriate CHEL dataset

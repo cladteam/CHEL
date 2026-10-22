@@ -1,3 +1,9 @@
+## Background
+
+The Center for Linkage and Acquisition of Data (CLAD) developed the CLAD Hex Environmental Linkage (CHEL) dataset for the All of Us Research Program to help researchers study the relationship between where people live and their health. CHEL draws on the CDC’s Environmental Justice Index (EJI), which includes data from government and commercial sources on environmental conditions, social vulnerability, community health, and climate hazards. We translate these measures into a common geographic grid so we can link them to participant health data.
+
+CHEL uses H3, a geographic indexing system developed by Uber that divides the world into a grid of cells that are primarily hexagonal. H3 has multiple resolutions, with higher resolution numbers representing smaller cells. We selected resolution 3 (Hex3) because it provides a consistent, standardized geography for environmental variables and supports data sharing when researchers cannot access more detailed location information. CHEL combines this geographic aggregation with additional privacy safeguards to reduce the risk of identifying participants.
+
 ## Example: Linking Participants to Different CHEL Datasets by Year
 
 This example demonstrates how to:
